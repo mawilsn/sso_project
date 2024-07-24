@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+  
+<body>
+  <h1>{{.Name}}</h1>
+  <img width="100" src="{{.Logo}}"/>
+  <p><b>{{.Name}}</b> is requesting access with the following scopes:</p>
+  <p>Requesting Access to {{.Website}}</p>
+  <ul>
+    {{range $scope := .Scopes}}
+    <li>{{$scope}}</li>
+    {{end}}
+  </ul>
+  <form action="confirm_auth">
+  <button type="submit" name="authorize" value="true">Authorize</button>
+  <button type="submit" name="authorize" value="false">Deny</button>
+  <input type="hidden" name="client_id" value="{{.Name}}"/>
+    <input type="hidden" name="state" value="{{.State}}"/>
+
+  </form>
+</body>
+</html>
+  
