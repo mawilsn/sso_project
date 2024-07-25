@@ -15,6 +15,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/joho/godotenv"
 	"github.com/lucsky/cuid"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -31,6 +32,20 @@ type Client struct {
 	CreatedAt    time.Time      `json:"created_at"`
 	UpdatedAt    time.Time      `json:"updated_at"`
 	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+type NewUserRequst struct {
+	Email    string
+	Password string
+}
+
+type User struct {
+	ID        string         `gorm:"primaryKey"`
+	Email     string         `gorm: "uniqueIndex"`
+	Password  string         `json:"-"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 type AuthRequest struct {
@@ -61,6 +76,12 @@ type TokenRequest struct {
 type TokenResponse struct {
 	AccessToken string `json:"access_token"`
 	ExpiresIn   int    `json:"expires_in"`
+}
+
+func hashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+
+	return string(bytes), err
 }
 
 func main() {
@@ -109,7 +130,29 @@ func main() {
 	api.Get("/", func(c *fiber.Ctx) error {
 		return c.SendString("Hello, World!")
 	})
+	api.Get("/user", func(c *fiber.Ctx) error {
+		user := new(User)
+		if err := c.BodyParser(user); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "invalid_request"})
+		}
 
+		if user.Email == "" {
+			return c.Status(400).JSON(fiber.Map{"error": "invalid_email"})
+		}
+		if user.Password == "" {
+			return c.Status(400).JSON(fiber.Map{"error": "invalid_password"})
+		}
+		hash, err := hashPassword(user.Password)
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"status": "error"})
+		}
+
+		user.Password = hash
+		if err := DB.Create(&user).Error; err != nil {
+			return c.Status(500).JSON(fiber.Map{"status": "error"})
+		}
+		return c.JSON(fiber.Map{"status": "success", "message": "created user"})
+	})
 	api.Get("/auth", func(c *fiber.Ctx) error {
 		authRequest := new(AuthRequest)
 		if err := c.QueryParser(authRequest); err != nil {
